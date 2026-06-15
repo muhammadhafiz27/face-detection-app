@@ -220,7 +220,7 @@ st.markdown("""
 # ─────────────────────────────────────────────
 # Session State
 # ─────────────────────────────────────────────
-for k, v in [("total_tested", 0), ("total_faces", 0), ("infer_times", []), ("history", [])]:
+for k, v in [("total_tested", 0), ("total_faces", 0), ("infer_times", []), ("history", []), ("skip_update", False),]:
     if k not in st.session_state:
         st.session_state[k] = v
 
@@ -345,11 +345,12 @@ with st.sidebar:
 
     st.markdown("---")
     if st.button("🗑️ Reset Statistik"):
-        st.session_state.total_tested = 0
-        st.session_state.total_faces  = 0
-        st.session_state.infer_times  = []
-        st.session_state.history      = []
-        st.success("Statistik direset!")
+    st.session_state.total_tested = 0
+    st.session_state.total_faces = 0
+    st.session_state.infer_times = []
+    st.session_state.history = []
+    st.session_state.skip_update = True
+    st.rerun()
 
 # ─────────────────────────────────────────────
 # HOME
@@ -520,7 +521,10 @@ elif page == "🔍 Detection":
                         <div class="value">{conf_val}</div>
                     </div>""", unsafe_allow_html=True)
 
-                update_stats(n, ms, uploaded.name, method)
+                if not st.session_state.skip_update:
+                    update_stats(n, ms, uploaded.name, method)
+                else:
+                    st.session_state.skip_update = False
 
             else:
                 out_h, n_h, ms_h, _    = detect_haar(img, haar_scale, haar_neighbors)
@@ -544,7 +548,10 @@ elif page == "🔍 Detection":
                 if sc_d:
                     c[4].metric("DNN Conf",  f"{np.mean(sc_d):.1%}")
 
-                update_stats(max(n_h, n_d), (ms_h + ms_d) / 2, uploaded.name, "Both")
+                if not st.session_state.just_reset:
+                    update_stats(max(n_h, n_d), (ms_h + ms_d) / 2, uploaded.name, "Both")
+                else:
+                    st.session_state.just_reset = False
 
         else:
             st.markdown("""
@@ -601,7 +608,10 @@ elif page == "🔍 Detection":
                     info_slot.markdown(f"Haar: **{n_h}** wajah / {ms_h:.0f}ms | DNN: **{n_d}** wajah / {ms_d:.0f}ms")
 
                 frame_slot.image(cv2.cvtColor(out, cv2.COLOR_BGR2RGB), use_container_width=True)
-                update_stats(n, ms, uploaded_video.name, method)
+                if not st.session_state.just_reset:
+                    update_stats(n, ms, uploaded_video.name, method)
+                else:
+                    st.session_state.just_reset = False
 
             cap.release()
             progress.progress(1.0)
