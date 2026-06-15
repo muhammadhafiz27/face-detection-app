@@ -345,12 +345,12 @@ with st.sidebar:
 
     st.markdown("---")
     if st.button("🗑️ Reset Statistik"):
-    st.session_state.total_tested = 0
-    st.session_state.total_faces = 0
-    st.session_state.infer_times = []
-    st.session_state.history = []
-    st.session_state.skip_update = True
-    st.rerun()
+        st.session_state.total_tested = 0
+        st.session_state.total_faces = 0
+        st.session_state.infer_times = []
+        st.session_state.history = []
+        st.session_state.skip_update = True
+        st.rerun()
 
 # ─────────────────────────────────────────────
 # HOME
