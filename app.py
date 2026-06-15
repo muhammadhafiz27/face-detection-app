@@ -559,50 +559,39 @@ elif page == "🔍 Detection":
         st.markdown("""
         <div class="info-box" style="background:#eff6ff; border-color:#3b82f6;">
             <b>📷 Petunjuk Penggunaan Webcam</b><br>
-            • Pastikan webcam terhubung dan izin akses telah diberikan<br>
-            • Posisikan wajah di depan kamera dengan pencahayaan cukup<br>
-            • Centang <b>Start Webcam</b> untuk memulai, hilangkan centang untuk berhenti
+            • Izinkan akses kamera saat browser meminta<br>
+            • Klik <b>START</b> untuk memulai deteksi real-time<br>
+            • Deteksi berjalan langsung di browser kamu
         </div>
         """, unsafe_allow_html=True)
         st.markdown("<br>", unsafe_allow_html=True)
 
-        run        = st.checkbox("▶️ Start Webcam")
-        frame_slot = st.empty()
-        info_slot  = st.empty()
+        import av
+        from streamlit_webrtc import webrtc_streamer, VideoProcessorBase
 
-        if run:
-            cap = cv2.VideoCapture(0)
-            if not cap.isOpened():
-                st.error("❌ Webcam tidak dapat diakses.")
-            else:
-                fc = 0
-                while run:
-                    ret, frame = cap.read()
-                    if not ret:
-                        break
-                    frame = cv2.flip(frame, 1)
+        class FaceDetector(VideoProcessorBase):
+            def recv(self, frame):
+                img = frame.to_ndarray(format="bgr24")
+                img = cv2.flip(img, 1)
 
-                    if method == "Haar Cascade":
-                        out, n, ms, _ = detect_haar(frame, haar_scale, haar_neighbors)
-                        info_slot.markdown(f"👤 **{n} wajah** &nbsp;|&nbsp; ⏱️ **{ms:.1f} ms** &nbsp;|&nbsp; Haar Cascade")
-                    elif method == "OpenCV DNN":
-                        out, n, ms, sc = detect_dnn(frame, dnn_conf)
-                        conf_str = f" &nbsp;|&nbsp; 🎯 {np.mean(sc):.1%}" if sc else ""
-                        info_slot.markdown(f"👤 **{n} wajah** &nbsp;|&nbsp; ⏱️ **{ms:.1f} ms** &nbsp;|&nbsp; DNN{conf_str}")
-                    else:
-                        out_h, n_h, ms_h, _ = detect_haar(frame, haar_scale, haar_neighbors)
-                        out_d, n_d, ms_d, _ = detect_dnn(frame, dnn_conf)
-                        out = np.hstack([out_h, out_d])
-                        n, ms = max(n_h, n_d), (ms_h + ms_d) / 2
-                        info_slot.markdown(f"Haar: **{n_h}** wajah / {ms_h:.0f}ms &nbsp;|&nbsp; DNN: **{n_d}** wajah / {ms_d:.0f}ms")
+                if method == "Haar Cascade":
+                    out, n, ms, _ = detect_haar(img, haar_scale, haar_neighbors)
+                elif method == "OpenCV DNN":
+                    out, n, ms, _ = detect_dnn(img, dnn_conf)
+                else:
+                    out_h, n_h, ms_h, _ = detect_haar(img, haar_scale, haar_neighbors)
+                    out_d, n_d, ms_d, _ = detect_dnn(img, dnn_conf)
+                    # tempel hasil Haar (kiri) dan DNN (kanan)
+                    out = np.hstack([out_h, out_d])
 
-                    frame_slot.image(cv2.cvtColor(out, cv2.COLOR_BGR2RGB), use_container_width=True)
+                return av.VideoFrame.from_ndarray(out, format="bgr24")
 
-                    if fc % 15 == 0:
-                        update_stats(n, ms, "webcam", method)
-                    fc += 1
-
-                cap.release()
+        webrtc_streamer(
+            key="face-detection",
+            video_processor_factory=FaceDetector,
+            rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]},
+            media_stream_constraints={"video": True, "audio": False},
+        )
 
 # ─────────────────────────────────────────────
 # DASHBOARD
