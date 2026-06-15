@@ -468,7 +468,7 @@ elif page == "🔍 Detection":
     st.markdown("<p style='color:#666;margin-top:-0.5rem;'>Upload gambar atau gunakan webcam untuk deteksi wajah real-time</p>", unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
-    input_mode = st.radio("Input Mode", ["📁 Upload Gambar", "📷 Webcam Real-time"], horizontal=True, label_visibility="collapsed")
+    input_mode = st.radio("Input Mode", ["📁 Upload Gambar", "🎥 Upload Video"], horizontal=True, label_visibility="collapsed")
     st.markdown("---")
 
     if input_mode == "📁 Upload Gambar":
@@ -556,56 +556,65 @@ elif page == "🔍 Detection":
             """, unsafe_allow_html=True)
 
     else:
-        st.markdown("""
-        <div class="info-box" style="background:#eff6ff; border-color:#3b82f6;">
-            <b>📷 Petunjuk Penggunaan Webcam</b><br>
-            • Izinkan akses kamera saat browser meminta<br>
-            • Klik <b>START</b> untuk memulai deteksi real-time<br>
-            • Deteksi berjalan langsung di browser kamu
-        </div>
-        """, unsafe_allow_html=True)
-        st.markdown("<br>", unsafe_allow_html=True)
+        uploaded_video = st.file_uploader("Upload video (MP4 / AVI)", type=["mp4", "avi", "mov"])
 
-        import av
-        from streamlit_webrtc import webrtc_streamer, VideoProcessorBase
+        if uploaded_video:
+            # simpan video sementara
+            import tempfile
+            tfile = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
+            tfile.write(uploaded_video.read())
+            tfile.flush()
 
-        class FaceDetector(VideoProcessorBase):
-            def recv(self, frame):
-                img = frame.to_ndarray(format="bgr24")
-                img = cv2.flip(img, 1)
+            cap = cv2.VideoCapture(tfile.name)
+            total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            fps = cap.get(cv2.CAP_PROP_FPS) or 30
+
+            st.markdown(f"**{total_frames} frame** | **{fps:.0f} FPS** | Proses setiap 5 frame")
+            progress = st.progress(0)
+            frame_slot = st.empty()
+            info_slot  = st.empty()
+
+            fc = 0
+            while cap.isOpened():
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                fc += 1
+                progress.progress(min(fc / total_frames, 1.0))
+
+                # proses setiap 5 frame biar tidak lambat
+                if fc % 5 != 0:
+                    continue
 
                 if method == "Haar Cascade":
-                    out, n, ms, _ = detect_haar(img, haar_scale, haar_neighbors)
+                    out, n, ms, _ = detect_haar(frame, haar_scale, haar_neighbors)
+                    info_slot.markdown(f"👤 **{n} wajah** | ⏱️ **{ms:.1f} ms** | Frame {fc}/{total_frames}")
                 elif method == "OpenCV DNN":
-                    out, n, ms, _ = detect_dnn(img, dnn_conf)
+                    out, n, ms, sc = detect_dnn(frame, dnn_conf)
+                    conf_str = f" | 🎯 {np.mean(sc):.1%}" if sc else ""
+                    info_slot.markdown(f"👤 **{n} wajah** | ⏱️ **{ms:.1f} ms** | Frame {fc}/{total_frames}{conf_str}")
                 else:
-                    out_h, n_h, ms_h, _ = detect_haar(img, haar_scale, haar_neighbors)
-                    out_d, n_d, ms_d, _ = detect_dnn(img, dnn_conf)
-                    # tempel hasil Haar (kiri) dan DNN (kanan)
+                    out_h, n_h, ms_h, _ = detect_haar(frame, haar_scale, haar_neighbors)
+                    out_d, n_d, ms_d, _ = detect_dnn(frame, dnn_conf)
                     out = np.hstack([out_h, out_d])
+                    n, ms = max(n_h, n_d), (ms_h + ms_d) / 2
+                    info_slot.markdown(f"Haar: **{n_h}** wajah / {ms_h:.0f}ms | DNN: **{n_d}** wajah / {ms_d:.0f}ms")
 
-                return av.VideoFrame.from_ndarray(out, format="bgr24")
+                frame_slot.image(cv2.cvtColor(out, cv2.COLOR_BGR2RGB), use_container_width=True)
+                update_stats(n, ms, uploaded_video.name, method)
 
-        webrtc_streamer(
-            key="face-detection",
-            video_processor_factory=FaceDetector,
-            rtc_configuration={
-                "iceServers": [
-                    {"urls": "stun:stun.l.google.com:19302"},
-                    {
-                        "urls": "turn:openrelay.metered.ca:80",
-                        "username": "openrelayproject",
-                        "credential": "openrelayproject",
-                    },
-                    {
-                        "urls": "turn:openrelay.metered.ca:443",
-                        "username": "openrelayproject",
-                        "credential": "openrelayproject",
-                    },
-                ]
-            },
-            media_stream_constraints={"video": True, "audio": False},
-        )
+            cap.release()
+            progress.progress(1.0)
+            st.success("✅ Video selesai diproses!")
+
+        else:
+            st.markdown("""
+            <div class="w-card" style="text-align:center; padding: 3rem;">
+                <div style="font-size:3rem; margin-bottom:1rem; opacity:0.3;">🎥</div>
+                <p style="color:#999;">Upload video untuk deteksi wajah per-frame<br>
+                <span style="font-size:0.82rem;">MP4, AVI, MOV (maks. 200MB)</span></p>
+            </div>
+            """, unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────
 # DASHBOARD
