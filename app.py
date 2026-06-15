@@ -62,15 +62,6 @@ st.markdown("""
     [data-testid="stSidebar"] .stSelectbox label,
     [data-testid="stSidebar"] .stSlider label { color: rgba(255,255,255,0.7) !important; font-size: 0.85rem; }
     [data-testid="stSidebar"] hr { border-color: rgba(255,255,255,0.1) !important; }
-    [data-testid="stSidebar"] .stButton button {
-        background: linear-gradient(135deg, #f093fb, #f5576c) !important;
-        color: white !important;
-        border: none !important;
-        border-radius: 12px !important;
-        font-weight: 600 !important;
-        padding: 0.6rem 1rem !important;
-        width: 100%;
-    }
 
     /* ── Sidebar logo area ── */
     .sidebar-logo {
@@ -220,7 +211,13 @@ st.markdown("""
 # ─────────────────────────────────────────────
 # Session State
 # ─────────────────────────────────────────────
-for k, v in [("total_tested", 0), ("total_faces", 0), ("infer_times", []), ("history", []), ("skip_update", False),]:
+for k, v in [
+    ("total_tested", 0),
+    ("total_faces", 0),
+    ("infer_times", []),
+    ("history", []),
+    ("last_file", None),
+]:
     if k not in st.session_state:
         st.session_state[k] = v
 
@@ -242,7 +239,7 @@ def load_dnn():
 # ─────────────────────────────────────────────
 # Detection Functions
 # ─────────────────────────────────────────────
-MAX_DIM = 1280  # piksel maksimum sisi terpanjang sebelum diproses
+MAX_DIM = 1280
 
 def resize_for_processing(img, max_dim=MAX_DIM):
     """Resize gambar besar agar tidak OOM. Kembalikan (img_kecil, scale_x, scale_y)."""
@@ -265,9 +262,8 @@ def detect_haar(img, scale, neighbors):
     t0    = time.time()
     faces = clf.detectMultiScale(gray, scaleFactor=scale, minNeighbors=neighbors, minSize=(30, 30))
     ms    = (time.time() - t0) * 1000
-    out   = img.copy()  # gambar ASLI untuk output berkualitas tinggi
+    out   = img.copy()
     for (x, y, w, h) in faces:
-        # scale koordinat kembali ke ukuran gambar asli
         x1, y1 = int(x * sx), int(y * sy)
         x2, y2 = int((x + w) * sx), int((y + h) * sy)
         cv2.rectangle(out, (x1, y1), (x2, y2), (50, 205, 100), 2)
@@ -283,14 +279,13 @@ def detect_dnn(img, conf_thresh):
     net.setInput(blob)
     dets = net.forward()
     ms   = (time.time() - t0) * 1000
-    out  = img.copy()  # gambar ASLI untuk output berkualitas tinggi
+    out  = img.copy()
     face_count = 0
     scores = []
     for i in range(dets.shape[2]):
         conf = float(dets[0, 0, i, 2])
         if conf < conf_thresh:
             continue
-        # koordinat relatif → piksel pada gambar kecil → scale ke asli
         x1 = int(dets[0, 0, i, 3] * sw * sx); y1 = int(dets[0, 0, i, 4] * sh * sy)
         x2 = int(dets[0, 0, i, 5] * sw * sx); y2 = int(dets[0, 0, i, 6] * sh * sy)
         x1, y1 = max(0, x1), max(0, y1)
@@ -343,15 +338,6 @@ with st.sidebar:
     else:
         dnn_conf = 0.5
 
-    st.markdown("---")
-    if st.button("🗑️ Reset Statistik"):
-        st.session_state.total_tested = 0
-        st.session_state.total_faces = 0
-        st.session_state.infer_times = []
-        st.session_state.history = []
-        st.session_state.skip_update = True
-        st.rerun()
-
 # ─────────────────────────────────────────────
 # HOME
 # ─────────────────────────────────────────────
@@ -398,7 +384,7 @@ if page == "🏠 Home":
         <p style="color:#555; line-height:1.7;">
         Aplikasi ini dikembangkan untuk membandingkan dua metode deteksi wajah yang populer:
         <b>Haar Cascade Classifier</b> dan <b>OpenCV DNN (ResNet-10 SSD)</b>.
-        Pengguna dapat menguji kedua metode pada gambar statis maupun webcam real-time,
+        Pengguna dapat menguji kedua metode pada gambar statis maupun video,
         serta melihat perbandingan performa keduanya dalam dashboard statistik yang komprehensif.
         </p>
     </div>
@@ -424,8 +410,8 @@ if page == "🏠 Home":
         <div class="step-row">
             <div class="step-num">3</div>
             <div class="step-body">
-                <h4>Upload atau Gunakan Webcam</h4>
-                <p>Pada halaman Detection, pilih upload gambar atau webcam real-time</p>
+                <h4>Upload Gambar atau Video</h4>
+                <p>Pada halaman Detection, pilih upload gambar atau video</p>
             </div>
         </div>
         <div class="step-row">
@@ -466,7 +452,7 @@ if page == "🏠 Home":
 # ─────────────────────────────────────────────
 elif page == "🔍 Detection":
     st.markdown("## 🔍 Face Detection")
-    st.markdown("<p style='color:#666;margin-top:-0.5rem;'>Upload gambar atau gunakan webcam untuk deteksi wajah real-time</p>", unsafe_allow_html=True)
+    st.markdown("<p style='color:#666;margin-top:-0.5rem;'>Upload gambar atau video untuk deteksi wajah</p>", unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
     input_mode = st.radio("Input Mode", ["📁 Upload Gambar", "🎥 Upload Video"], horizontal=True, label_visibility="collapsed")
@@ -521,6 +507,7 @@ elif page == "🔍 Detection":
                         <div class="value">{conf_val}</div>
                     </div>""", unsafe_allow_html=True)
 
+                # Catat statistik hanya jika file baru
                 if st.session_state.last_file != uploaded.name:
                     update_stats(n, ms, uploaded.name, method)
                     st.session_state.last_file = uploaded.name
@@ -547,6 +534,7 @@ elif page == "🔍 Detection":
                 if sc_d:
                     c[4].metric("DNN Conf",  f"{np.mean(sc_d):.1%}")
 
+                # Catat statistik hanya jika file baru
                 if st.session_state.last_file != uploaded.name:
                     update_stats(max(n_h, n_d), (ms_h + ms_d) / 2, uploaded.name, "Both")
                     st.session_state.last_file = uploaded.name
@@ -564,30 +552,31 @@ elif page == "🔍 Detection":
         uploaded_video = st.file_uploader("Upload video (MP4 / AVI)", type=["mp4", "avi", "mov"])
 
         if uploaded_video:
-            # simpan video sementara
-            import tempfile
+            import tempfile, os
             tfile = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
             tfile.write(uploaded_video.read())
             tfile.flush()
+            tfile.close()
 
             cap = cv2.VideoCapture(tfile.name)
             total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
             fps = cap.get(cv2.CAP_PROP_FPS) or 30
 
             st.markdown(f"**{total_frames} frame** | **{fps:.0f} FPS** | Proses setiap 5 frame")
-            progress = st.progress(0)
+            progress  = st.progress(0)
             frame_slot = st.empty()
             info_slot  = st.empty()
 
             fc = 0
+            last_n, last_ms = 0, 0.0
+
             while cap.isOpened():
                 ret, frame = cap.read()
                 if not ret:
                     break
                 fc += 1
-                progress.progress(min(fc / total_frames, 1.0))
+                progress.progress(min(fc / max(total_frames, 1), 1.0))
 
-                # proses setiap 5 frame biar tidak lambat
                 if fc % 5 != 0:
                     continue
 
@@ -605,14 +594,18 @@ elif page == "🔍 Detection":
                     n, ms = max(n_h, n_d), (ms_h + ms_d) / 2
                     info_slot.markdown(f"Haar: **{n_h}** wajah / {ms_h:.0f}ms | DNN: **{n_d}** wajah / {ms_d:.0f}ms")
 
+                last_n, last_ms = n, ms
                 frame_slot.image(cv2.cvtColor(out, cv2.COLOR_BGR2RGB), use_container_width=True)
-                if st.session_state.last_file != uploaded_video.name:
-                    update_stats(n, ms, uploaded_video.name, method)
-                    st.session_state.last_file = uploaded_video.name
 
             cap.release()
+            os.unlink(tfile.name)
             progress.progress(1.0)
             st.success("✅ Video selesai diproses!")
+
+            # Catat statistik satu kali setelah video selesai
+            if st.session_state.last_file != uploaded_video.name:
+                update_stats(last_n, last_ms, uploaded_video.name, method)
+                st.session_state.last_file = uploaded_video.name
 
         else:
             st.markdown("""
@@ -680,7 +673,11 @@ elif page == "📊 Dashboard":
             for i, row in enumerate(st.session_state.history, 1):
                 m = row["Metode"]
                 s = row["Sumber"]
-                badge_m = f'<span class="badge-haar">{m}</span>' if m == "Haar Cascade" else (f'<span class="badge-dnn">{m}</span>' if m == "OpenCV DNN" else f'<span class="badge-both">{m}</span>')
+                badge_m = (
+                    f'<span class="badge-haar">{m}</span>' if m == "Haar Cascade"
+                    else f'<span class="badge-dnn">{m}</span>' if m == "OpenCV DNN"
+                    else f'<span class="badge-both">{m}</span>'
+                )
                 badge_s = f'<span class="badge-webcam">{s}</span>' if s == "webcam" else f'<span class="badge-upload">{s}</span>'
                 rows_html += f"""
                 <tr style="border-bottom:1px solid #f0f0f0;">
