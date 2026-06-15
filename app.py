@@ -521,10 +521,9 @@ elif page == "🔍 Detection":
                         <div class="value">{conf_val}</div>
                     </div>""", unsafe_allow_html=True)
 
-                if not st.session_state.skip_update:
+                if st.session_state.last_file != uploaded.name:
                     update_stats(n, ms, uploaded.name, method)
-                else:
-                    st.session_state.skip_update = False
+                    st.session_state.last_file = uploaded.name
 
             else:
                 out_h, n_h, ms_h, _    = detect_haar(img, haar_scale, haar_neighbors)
@@ -548,10 +547,9 @@ elif page == "🔍 Detection":
                 if sc_d:
                     c[4].metric("DNN Conf",  f"{np.mean(sc_d):.1%}")
 
-                if not st.session_state.just_reset:
+                if st.session_state.last_file != uploaded.name:
                     update_stats(max(n_h, n_d), (ms_h + ms_d) / 2, uploaded.name, "Both")
-                else:
-                    st.session_state.just_reset = False
+                    st.session_state.last_file = uploaded.name
 
         else:
             st.markdown("""
@@ -608,10 +606,9 @@ elif page == "🔍 Detection":
                     info_slot.markdown(f"Haar: **{n_h}** wajah / {ms_h:.0f}ms | DNN: **{n_d}** wajah / {ms_d:.0f}ms")
 
                 frame_slot.image(cv2.cvtColor(out, cv2.COLOR_BGR2RGB), use_container_width=True)
-                if not st.session_state.just_reset:
+                if st.session_state.last_file != uploaded_video.name:
                     update_stats(n, ms, uploaded_video.name, method)
-                else:
-                    st.session_state.just_reset = False
+                    st.session_state.last_file = uploaded_video.name
 
             cap.release()
             progress.progress(1.0)
