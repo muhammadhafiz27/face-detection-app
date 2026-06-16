@@ -8,7 +8,6 @@ st.set_page_config(
     page_title="Face Detection App",
     page_icon="👤",
     layout="wide",
-    initial_sidebar_state="expanded"
 )
 
 st.markdown("""
@@ -52,7 +51,6 @@ st.markdown("""
     [data-testid="stSidebar"] p,
     [data-testid="stSidebar"] span,
     [data-testid="stSidebar"] label,
-    [data-testid="stSidebar"] div,
     [data-testid="stSidebar"] h1,
     [data-testid="stSidebar"] h2,
     [data-testid="stSidebar"] h3,
@@ -204,7 +202,23 @@ st.markdown("""
     [data-testid="stMain"] [data-testid="stMarkdownContainer"] p { color: #1a1a2e !important; }
 
     /* hide streamlit branding */
-    #MainMenu, footer, header { visibility: hidden; }
+    #MainMenu, footer { visibility: hidden; }
+    header { visibility: hidden; }
+
+    /* ── Fix: tombol toggle sidebar selalu visible ── */
+    [data-testid="collapsedControl"] {
+        visibility: visible !important;
+        display: flex !important;
+        opacity: 1 !important;
+        z-index: 999999 !important;
+    }
+    [data-testid="stSidebarCollapseButton"] {
+        visibility: visible !important;
+        display: flex !important;
+    }
+    [data-testid="stSidebarCollapseButton"] svg path {
+        fill: white !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
