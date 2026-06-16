@@ -203,7 +203,7 @@ st.markdown("""
 
     /* hide streamlit branding */
     #MainMenu, footer { visibility: hidden; }
-    header { visibility: hidden; }
+    header > div:first-child { visibility: hidden; }
 
     /* ── Fix: tombol toggle sidebar selalu visible ── */
     [data-testid="collapsedControl"] {
