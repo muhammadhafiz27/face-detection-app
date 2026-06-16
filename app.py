@@ -203,20 +203,29 @@ st.markdown("""
 
     /* hide streamlit branding */
     #MainMenu, footer { visibility: hidden; }
-    header > div:first-child { visibility: hidden; }
 
-    /* ── Fix: tombol toggle sidebar selalu visible ── */
-    [data-testid="collapsedControl"] {
-        visibility: visible !important;
-        display: flex !important;
-        opacity: 1 !important;
-        z-index: 999999 !important;
-    }
+    /* Sembunyikan toolbar dan deploy button, tapi BUKAN tombol toggle */
+    [data-testid="stToolbar"] { visibility: hidden; }
+    [data-testid="stDecoration"] { display: none; }
+    [data-testid="stStatusWidget"] { visibility: hidden; }
+
+    /* ── Fix: tombol toggle sidebar PAKSA visible ── */
+    [data-testid="collapsedControl"],
     [data-testid="stSidebarCollapseButton"] {
         visibility: visible !important;
         display: flex !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+        z-index: 999999 !important;
     }
+    [data-testid="stSidebarCollapseButton"] button {
+        visibility: visible !important;
+        pointer-events: auto !important;
+        background: transparent !important;
+    }
+    [data-testid="stSidebarCollapseButton"] svg,
     [data-testid="stSidebarCollapseButton"] svg path {
+        visibility: visible !important;
         fill: white !important;
     }
 </style>
