@@ -201,33 +201,9 @@ st.markdown("""
     [data-testid="stMain"] .stCheckbox label { color: #1a1a2e !important; }
     [data-testid="stMain"] [data-testid="stMarkdownContainer"] p { color: #1a1a2e !important; }
 
-    /* hide streamlit branding */
-    #MainMenu, footer { visibility: hidden; }
-
-    /* Sembunyikan toolbar dan deploy button, tapi BUKAN tombol toggle */
-    [data-testid="stToolbar"] { visibility: hidden; }
-    [data-testid="stDecoration"] { display: none; }
-    [data-testid="stStatusWidget"] { visibility: hidden; }
-
-    /* ── Fix: tombol toggle sidebar PAKSA visible ── */
-    [data-testid="collapsedControl"],
-    [data-testid="stSidebarCollapseButton"] {
-        visibility: visible !important;
-        display: flex !important;
-        opacity: 1 !important;
-        pointer-events: auto !important;
-        z-index: 999999 !important;
-    }
-    [data-testid="stSidebarCollapseButton"] button {
-        visibility: visible !important;
-        pointer-events: auto !important;
-        background: transparent !important;
-    }
-    [data-testid="stSidebarCollapseButton"] svg,
-    [data-testid="stSidebarCollapseButton"] svg path {
-        visibility: visible !important;
-        fill: white !important;
-    }
+    /* hide streamlit branding only */
+    #MainMenu { visibility: hidden; }
+    footer { visibility: hidden; }
 </style>
 """, unsafe_allow_html=True)
 
